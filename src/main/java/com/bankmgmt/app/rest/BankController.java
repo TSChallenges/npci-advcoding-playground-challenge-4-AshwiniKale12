@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.ResponseCache;
 import java.util.List;
 
 @RestController
@@ -16,74 +17,90 @@ public class BankController {
    @Autowired
     private BankService bankService;
 
-    //API to Create a new account
-    @PostMapping("/create")
-    public ResponseEntity<Account> addNewAccount(Account account) {
-    	Account a = bankService.addAccount(account);
-    	return new ResponseEntity<>(a,HttpStatus.CREATED);
+   @PostMapping()
+   public ResponseEntity<?> addAccount(@RequestBody Account account){
+    if(account.getBalance() < 0){
+        return ResponseEntity.badRequest().body("Initial balance could not be negative.");
     }
 
-    //API to Get all accounts
-    @GetMapping("/getAll")
-    public ResponseEntity<List<Account>> getAllAccount(){
-    	List<Account> accounts=bankService.getAllAccount();
-    	if(accounts.isEmpty()) {
-    		return new ResponseEntity<>(null,HttpStatus.NOT_FOUND);
-    	}
-    	return new ResponseEntity<>(accounts,HttpStatus.OK);
+    String type = account.getAccountType().toUpperCase();
+    if(type != "SAVINGS" || type != "CURRENT"){
+        return ResponseEntity.badRequest().body("Account type must be SAVINGS or CURRENT.");
     }
-    
 
-    //API to Get an account by ID
-    @GetMapping("/getById/{id}")
-    public ResponseEntity<Account> getAccounUsingId(@PathVariable("id") int id){
-    	Account account = bankService.getAccountById(id);
-    	return new ResponseEntity<>(account,HttpStatus.OK);
+    boolean isEmailUnique = bankService.getAll().stream().noneMatch(a -> a.getEmail().equalsIgnoreCase(account.getEmail())) ;
+    if(!isEmailUnique){
+        return ResponseEntity.badRequest().body("Email already exists.");
     }
-    
+    account.setBalance(0.0);
+    Account account2 = bankService.addAccount(account);
+    return new ResponseEntity<>(account2,HttpStatus.CREATED);
 
-    //  API to Deposit money
-    @PutMapping("/deposite")
-    public ResponseEntity<Account> depositeMoneyToAcc(@RequestBody Account account){
-    	Account  acc = bankService.depositeMoney(account.getId(),account.getBalance());
-    	if(acc == null) {
-    		return new ResponseEntity<>(null,HttpStatus.NOT_FOUND);
-    	}
-    	return new ResponseEntity<>(acc,HttpStatus.OK);
+   }
+
+   @GetMapping()
+   public ResponseEntity<List<Account>> getAllAccount(){
+    List<Account> accounts = bankService.getAll();
+    if(accounts.isEmpty()){
+        return new ResponseEntity<>(null,HttpStatus.NOT_FOUND);
     }
-    
+    return new ResponseEntity<>(accounts,HttpStatus.OK);
+   }  
 
-    //  API to Withdraw money
-    @PutMapping("/withdraw")
-    public ResponseEntity<Account> withdrwaMoneyToAcc(@RequestBody Account account){
-    	Account  acc = bankService.withdrawMoney(account.getId(),account.getBalance());
-    	if(acc == null) {
-    		return new ResponseEntity<>(null,HttpStatus.NOT_FOUND);
-    	}
-    	return new ResponseEntity<>(acc,HttpStatus.OK);
+   @GetMapping("/{id}")
+   public ResponseEntity<?> getAccountById(@PathVariable("id") Integer id ){
+    Account account = bankService.getAccountById(id);
+    if(account == null ){
+        return ResponseEntity.badRequest().body("Account Not Found");
     }
-    
+    return new ResponseEntity<>(account , HttpStatus.OK);
+   }
 
-    //API to Transfer money between accounts
-    @PutMapping("/transfer")
-    public ResponseEntity<String> transferMoneytoAcc(@RequestParam int fromAccId, 
-            @RequestParam int toAccId, 
-            @RequestParam double amount){
-    	String result = bankService.moneyTransfer(fromAccId, toAccId, amount);
-    	if (result.startsWith("Amount:")) {
-            return new ResponseEntity<>(result, HttpStatus.OK);
+
+   @PostMapping("/{id}/deposit")
+   public ResponseEntity<?> deposite(@PathVariable("id") Integer id,@RequestBody Account account){
+    if(account.getBalance() < 0 || account.getBalance() == null ){
+        return ResponseEntity.badRequest().body("Deposite amount should be positive");
+    }
+    Account account2 = bankService.depositeMoney(id,account.getBalance());
+    if(account2 == null ){
+        return ResponseEntity.badRequest().body("Account Not Found");
+    }
+    return new ResponseEntity<>(account2,HttpStatus.OK);
+   }
+
+   @PostMapping("/{id}/withdraw")
+   public ResponseEntity<?> withdraw(@PathVariable("id") Integer id,@RequestBody Account account){
+    if(account.getBalance() < 0 || account.getBalance() == null ){
+        return ResponseEntity.badRequest().body("Withdrawal amount should be positive");
+    }
+    Account acc = bankService.withdrawMoney(id, account.getBalance());
+    if(acc == null ){
+        return ResponseEntity.badRequest().body("Account Not Found");
+    }
+
+  return new ResponseEntity<>(acc,HttpStatus.OK);
+   }
+
+   @PostMapping("/transer/{fromId}/{toId}/{amount}")
+   public ResponseEntity<?> transerAmmount(@RequestParam("fromId") Integer fromId ,
+                                           @RequestParam("toId") Integer toId,
+                                           @RequestParam("amount") Double amount){
+        String result = bankService.transerAmmount(fromId, toId, amount);
+        if(result.startsWith("Transfer Successfull")){
+            return new ResponseEntity<>(result,HttpStatus.OK);
         }
-        return new ResponseEntity<>(result, HttpStatus.BAD_REQUEST);
-    }
-    
 
-    //API to Delete an account
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteAccount(@PathVariable("id") int id) {
-    	String deletion = bankService.delete(id);
-    	return new ResponseEntity<>(deletion,HttpStatus.OK);
-    }
-    
-    
+        return new ResponseEntity<>(result,HttpStatus.BAD_REQUEST);
+     }
+
+     @DeleteMapping("/{id}")
+     public ResponseEntity<?> deleteAccount(@PathVariable("id") Integer id){
+        String result = bankService.deleteAccount(id);
+        if(result == null){
+            return new ResponseEntity<>("Account Not Found",HttpStatus.NOT_FOUND);
+        }
+        return new ResponseEntity<>(result,HttpStatus.OK);
+     }
     
 }

@@ -20,85 +20,80 @@ public class BankService {
                      )
     				);
 
-	// Method to Create a new Account
-	public Account addAccount(Account newAccount) {
-		newAccount.setId(currentId);
+	public Account addAccount(Account newAccount){
+		newAccount.setId(currentId++);
 		accounts.add(newAccount);
 		return newAccount;
 	}
-    				
-    
-    // Method to Get All Accounts
-	public List<Account> getAllAccount(){
+
+	public List<Account> getAll(){
 		return accounts;
 	}
-    
-//	find account by is
-	public Account findAccountById(int id) {
-		for(Account a : accounts) {
-			if(a.getId() == id) {
-				return a;
+
+	private Account findAccountById(Integer id){
+		return accounts.stream().filter(e -> e.getId().equals(id)).findFirst().orElse(null);
+		
+	}
+
+	public Account getAccountById(Integer id){
+		return findAccountById(id);
+	}
+
+	public Account depositeMoney(Integer id,Double newBalance ){
+		Account account = findAccountById(id);
+		if(account != null && newBalance > 0 ){
+			account.setBalance(account.getBalance() + newBalance);
+		}
+        return account;
+	}
+
+	public Account withdrawMoney(Integer id,Double newBalance){
+		Account account = findAccountById(id);
+
+		if(account != null &&  newBalance > 0){
+			if(account.getBalance() >= newBalance){
+           account.setBalance(account.getBalance() - newBalance);
+		   return account;
 			}
+		}else{
+			System.out.println("Insufficient funds");
+			return null;
 		}
 		return null;
 	}
 
-    // Method to Get Account by ID
-	public Account getAccountById(int id) {
-		return findAccountById(id);
-	}
-    
-
-    // Method to Deposit Money to the specified account id
-	public Account depositeMoney(int id,Double amt) {
-		Account a = findAccountById(id);
-		if(a != null && amt != null) {
-			a.setBalance(a.getBalance()+amt);
-		}
-		return a;	
-	}
-    
-
-    //  Method to Withdraw Money from the specified account id
-	public Account withdrawMoney(int id,Double amt) {
-		Account a = findAccountById(id);
-		if(a != null && amt != null) {
-			a.setBalance(a.getBalance()- amt);
-		}
-		return a;	
-	}
-    
-
-    // Method to Transfer Money from one account to another
-	public String moneyTransfer(int fromAccId,int toAccId,Double balance) {
+	public String transerAmmount(Integer fromAccId , Integer toAccId , Double newBalance){
 		Account fromAccount = findAccountById(fromAccId);
 		Account toAccount = findAccountById(toAccId);
-		if (fromAccount == null) {
-		    return "Sender account not found.";
+
+		if(fromAccount == null || toAccount == null){
+            return "Invalid account(s)";
 		}
-		if (toAccount == null) {
-		    return "Receiver account not found.";
+
+		if(newBalance == null || newBalance <= 0){
+			return "Transfer amount must be positive.";
 		}
-		if (balance == null || balance <= 0) {
-		    return "Invalid transfer amount.";
+
+		if(fromAccount.getBalance() < newBalance){
+			return "Insufficient Funds";
 		}
-		if (fromAccount.getBalance() < balance) {
-		    return "Insufficient Balance.";
+        
+		if( fromAccount.getBalance() >= newBalance && newBalance > 0){
+            fromAccount.setBalance(fromAccount.getBalance() - newBalance);
+			toAccount.setBalance(toAccount.getBalance() + newBalance);
+			return "Transfer Successfull From:" + fromAccount.getId() + "to account: " + toAccount.getId();
 		}
-		fromAccount.setBalance(fromAccount.getBalance() - balance);
-		toAccount.setBalance(toAccount.getBalance() + balance);
-		
-		return "Amount:"+ balance +" Transfer Successfully";
+	  return "Transer Successfull";
 	}
-    
-	
-    //  Method to Delete Account given a account id
-	public String delete(int id) {
-		Account a = findAccountById(id);
-		if(a == null) {
-			return "Account Not Found";
+
+	public String deleteAccount(Integer id){
+		Account account = findAccountById(id);
+		if(account == null ){
+			return " Account not found for id: " + id;
 		}
-	 accounts.remove(a);
-	 return "Account Deleted Sucessfully";
+		accounts.remove(account);
+		return "Account Deleted Successfully";
 	}
+
+
 }
